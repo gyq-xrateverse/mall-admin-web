@@ -79,21 +79,24 @@
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column label="视频封面" width="100" align="center">
+        <el-table-column label="预览" width="120" align="center">
           <template slot-scope="scope">
-            <el-image
-              v-if="scope.row.image"
-              style="width: 60px; height: 40px"
-              :src="scope.row.image"
-              :preview-src-list="[scope.row.image]"
-              fit="cover">
-            </el-image>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="类型" width="80" align="center">
-          <template slot-scope="scope">
-            <el-tag type="success">视频</el-tag>
+            <div class="preview-container">
+              <el-image
+                v-if="scope.row.image"
+                style="width: 60px; height: 40px"
+                :src="buildFileUrl(scope.row.image)"
+                :preview-src-list="[buildFileUrl(scope.row.image)]"
+                fit="cover"
+                :lazy="true">
+                <div slot="error" class="image-slot">
+                  <i class="el-icon-picture-outline"></i>
+                </div>
+              </el-image>
+              <div v-if="scope.row.video" class="video-icon" @click="handlePlayVideo(scope.row)">
+                <i class="el-icon-video-play"></i>
+              </div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="分类" width="120" align="center">
@@ -215,6 +218,15 @@
         fetchAllList().then(response => {
           this.categoryOptions = response.data;
         });
+      },
+      buildFileUrl(objectName) {
+        if (!objectName) return '';
+        // 根据实际配置构建文件访问URL
+        return process.env.VUE_APP_FILE_BASE_URL + '/' + objectName;
+      },
+      handlePlayVideo(row) {
+        // 跳转到详情页面播放视频
+        this.handleViewDetail(row);
       },
       handleResetSearch() {
         this.listQuery = {
@@ -387,5 +399,42 @@
 <style scoped>
   .input-width {
     width: 203px;
+  }
+
+  .preview-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  .video-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: white;
+    font-size: 12px;
+  }
+
+  .video-icon:hover {
+    background: rgba(0, 0, 0, 0.8);
+  }
+
+  .image-slot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    background: #f5f7fa;
+    color: #909399;
+    font-size: 20px;
   }
 </style>

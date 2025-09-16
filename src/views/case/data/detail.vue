@@ -13,13 +13,41 @@
       </div>
       
       <div class="detail-content">
-        <div class="content-section" v-if="caseData.coverImage">
-          <h3>封面图片</h3>
-          <el-image 
+        <div class="content-section" v-if="caseData.video">
+          <h3>案例视频</h3>
+          <div class="video-container">
+            <video
+              ref="videoPlayer"
+              :src="buildFileUrl(caseData.video)"
+              :poster="buildFileUrl(caseData.image)"
+              controls
+              preload="metadata"
+              width="100%"
+              height="400"
+              @loadstart="onVideoLoadStart"
+              @loadeddata="onVideoLoaded"
+              @error="onVideoError"
+              @play="onVideoPlay"
+              @pause="onVideoPause">
+              您的浏览器不支持视频播放。
+            </video>
+            <div v-if="videoError" class="video-error">
+              <i class="el-icon-warning"></i>
+              <span>视频加载失败</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-section" v-if="caseData.image">
+          <h3>视频封面</h3>
+          <el-image
             style="width: 300px; height: 200px"
-            :src="caseData.coverImage"
-            :preview-src-list="[caseData.coverImage]"
+            :src="buildFileUrl(caseData.image)"
+            :preview-src-list="[buildFileUrl(caseData.image)]"
             fit="cover">
+            <div slot="error" class="image-slot">
+              <i class="el-icon-picture-outline"></i>
+            </div>
           </el-image>
         </div>
         
@@ -28,24 +56,10 @@
           <div v-html="caseData.content" class="rich-content"></div>
         </div>
         
-        <div class="content-section" v-if="caseData.imageList && caseData.imageList.length > 0">
-          <h3>案例图片</h3>
-          <div class="image-gallery">
-            <el-image 
-              v-for="(image, index) in caseData.imageList"
-              :key="index"
-              style="width: 150px; height: 100px; margin-right: 10px; margin-bottom: 10px"
-              :src="image"
-              :preview-src-list="caseData.imageList"
-              fit="cover">
-            </el-image>
-          </div>
-        </div>
-        
-        <div class="content-section" v-if="caseData.tagList && caseData.tagList.length > 0">
+        <div class="content-section" v-if="displayTagList && displayTagList.length > 0">
           <h3>标签</h3>
           <div class="tag-list">
-            <el-tag v-for="tag in caseData.tagList" :key="tag" style="margin-right: 10px;">
+            <el-tag v-for="tag in displayTagList" :key="tag" style="margin-right: 10px;">
               {{tag}}
             </el-tag>
           </div>
@@ -62,8 +76,35 @@
             </el-tag>
           </div>
         </div>
+
+        <div class="content-section" v-if="relatedCases && relatedCases.length > 0">
+          <h3>相关案例</h3>
+          <div class="related-cases">
+            <div
+              v-for="item in relatedCases"
+              :key="item.id"
+              class="related-case-item"
+              @click="viewRelatedCase(item)">
+              <el-image
+                style="width: 120px; height: 80px"
+                :src="buildFileUrl(item.image)"
+                fit="cover">
+                <div slot="error" class="image-slot">
+                  <i class="el-icon-picture-outline"></i>
+                </div>
+              </el-image>
+              <div class="case-info">
+                <h4>{{item.title}}</h4>
+                <p class="case-meta">
+                  <span>浏览: {{item.viewCount}}</span>
+                  <span>点赞: {{item.likeCount}}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      
+
       <div class="detail-footer">
         <el-button @click="handleEdit">编辑</el-button>
         <el-button @click="goBack">返回</el-button>
@@ -80,7 +121,23 @@
     name: 'CaseDataDetail',
     data() {
       return {
-        caseData: null
+        caseData: null,
+        relatedCases: [],
+        videoError: false,
+        videoLoading: false
+      }
+    },
+    computed: {
+      displayTagList() {
+        if (!this.caseData || !this.caseData.tagList) return [];
+        if (Array.isArray(this.caseData.tagList)) {
+          return this.caseData.tagList;
+        }
+        // 如果是字符串，按逗号分割
+        if (typeof this.caseData.tagList === 'string') {
+          return this.caseData.tagList.split(',').map(tag => tag.trim()).filter(tag => tag);
+        }
+        return [];
       }
     },
     created() {
@@ -100,13 +157,55 @@
         let id = this.$route.query.id;
         getCaseData(id).then(response => {
           this.caseData = response.data;
+          this.getRelatedCases();
+        }).catch(error => {
+          this.$message.error('获取案例详情失败');
         });
+      },
+      getRelatedCases() {
+        // 模拟获取相关案例，实际应该调用API
+        // fetchRelatedCases(this.caseData.categoryId, this.caseData.id)
+        this.relatedCases = [];
+      },
+      buildFileUrl(objectName) {
+        if (!objectName) return '';
+        return process.env.VUE_APP_FILE_BASE_URL + '/' + objectName;
+      },
+      onVideoLoadStart() {
+        this.videoLoading = true;
+        this.videoError = false;
+      },
+      onVideoLoaded() {
+        this.videoLoading = false;
+        this.videoError = false;
+      },
+      onVideoError() {
+        this.videoLoading = false;
+        this.videoError = true;
+        this.$message.error('视频加载失败');
+      },
+      onVideoPlay() {
+        // 可以在这里统计播放数据
+        console.log('视频开始播放');
+      },
+      onVideoPause() {
+        console.log('视频暂停');
+      },
+      viewRelatedCase(caseItem) {
+        this.$router.push({path: '/case/dataDetail', query: {id: caseItem.id}});
       },
       handleEdit() {
         this.$router.push({path: '/case/updateData', query: {id: this.caseData.id}});
       },
       goBack() {
         this.$router.back();
+      }
+    },
+    beforeDestroy() {
+      // 清理视频资源
+      if (this.$refs.videoPlayer) {
+        this.$refs.videoPlayer.pause();
+        this.$refs.videoPlayer.src = '';
       }
     }
   }
@@ -177,5 +276,87 @@
     border-top: 1px solid #ebeef5;
     padding-top: 20px;
     text-align: right;
+  }
+
+  .video-container {
+    position: relative;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .video-container video {
+    width: 100%;
+    height: auto;
+    max-height: 500px;
+  }
+
+  .video-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #f56c6c;
+    text-align: center;
+  }
+
+  .video-error i {
+    font-size: 48px;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .image-slot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    background: #f5f7fa;
+    color: #909399;
+    font-size: 20px;
+  }
+
+  .related-cases {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  .related-case-item {
+    display: flex;
+    width: 300px;
+    padding: 10px;
+    border: 1px solid #ebeef5;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .related-case-item:hover {
+    border-color: #409EFF;
+    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+  }
+
+  .case-info {
+    margin-left: 10px;
+    flex: 1;
+  }
+
+  .case-info h4 {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    color: #303133;
+    line-height: 1.4;
+  }
+
+  .case-meta {
+    color: #909399;
+    font-size: 12px;
+    margin: 0;
+  }
+
+  .case-meta span {
+    margin-right: 10px;
   }
 </style>
