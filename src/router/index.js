@@ -303,6 +303,62 @@ export const asyncRouterMap = [
     ]
   },
   {
+    path: '/case',
+    component: Layout,
+    redirect: '/case/category',
+    name: 'case',
+    meta: {title: '案例管理', icon: 'cms'},
+    children: [
+      {
+        path: 'category',
+        name: 'caseCategory',
+        component: () => import('@/views/case/category/index'),
+        meta: {title: '案例分类', icon: 'product-cate'}
+      },
+      {
+        path: 'addCategory',
+        name: 'addCaseCategory',
+        component: () => import('@/views/case/category/add'),
+        meta: {title: '添加案例分类'},
+        hidden: true
+      },
+      {
+        path: 'updateCategory',
+        name: 'updateCaseCategory',
+        component: () => import('@/views/case/category/update'),
+        meta: {title: '修改案例分类'},
+        hidden: true
+      },
+      {
+        path: 'data',
+        name: 'caseData',
+        component: () => import('@/views/case/data/index'),
+        meta: {title: '案例管理', icon: 'product-list'}
+      },
+      {
+        path: 'addData',
+        name: 'addCaseData',
+        component: () => import('@/views/case/data/add'),
+        meta: {title: '添加案例'},
+        hidden: true
+      },
+      {
+        path: 'updateData',
+        name: 'updateCaseData',
+        component: () => import('@/views/case/data/update'),
+        meta: {title: '修改案例'},
+        hidden: true
+      },
+      {
+        path: 'dataDetail',
+        name: 'caseDataDetail',
+        component: () => import('@/views/case/data/detail'),
+        meta: {title: '案例详情'},
+        hidden: true
+      }
+    ]
+  },
+  {
     path:'/ums',
     component: Layout,
     redirect: '/ums/admin',

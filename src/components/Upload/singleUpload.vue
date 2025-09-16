@@ -20,6 +20,7 @@
 </template>
 <script>
   import {policy} from '@/api/oss'
+  import { extractObjectName, buildUrl } from '@/utils/minioUtil'
 
   export default {
     name: 'singleUpload',
@@ -28,6 +29,12 @@
     },
     computed: {
       imageUrl() {
+        // 如果value是完整URL，直接返回；如果是objectName，构建完整URL
+        if (this.value && (this.value.startsWith('http://') || this.value.startsWith('https://'))) {
+          return this.value;
+        } else if (this.value) {
+          return buildUrl(this.value);
+        }
         return this.value;
       },
       imageName() {
@@ -104,12 +111,16 @@
         this.showFileList = true;
         this.fileList.pop();
         let url = this.dataObj.host + '/' + this.dataObj.dir + '/' + file.name;
+        let objectName = this.dataObj.dir + '/' + file.name; // OSS的objectName
+
         if(!this.useOss){
           //不使用oss直接获取图片路径
           url = res.data.url;
+          objectName = res.data.objectName || res.data.url; // MinIO的objectName
         }
         this.fileList.push({name: file.name, url: url});
-        this.emitInput(this.fileList[0].url);
+        // 发送objectName给父组件保存到数据库，而不是完整URL
+        this.emitInput(objectName);
       }
     }
   }
