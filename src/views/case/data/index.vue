@@ -220,9 +220,23 @@
         });
       },
       buildFileUrl(objectName) {
-        if (!objectName) return '';
-        // 根据实际配置构建文件访问URL
-        return process.env.VUE_APP_FILE_BASE_URL + '/' + objectName;
+        if (!objectName) {
+          return '';
+        }
+
+        // 如果已经是完整URL，直接返回
+        if (objectName.startsWith('http://') || objectName.startsWith('https://')) {
+          return objectName;
+        }
+
+        // 使用环境变量构建URL
+        const baseUrl = process.env.VUE_APP_FILE_BASE_URL;
+        if (!baseUrl) {
+          console.warn('VUE_APP_FILE_BASE_URL 环境变量未配置，使用默认地址');
+          return 'http://localhost:9090/mall/' + objectName;
+        }
+
+        return baseUrl + '/' + objectName;
       },
       handlePlayVideo(row) {
         // 跳转到详情页面播放视频

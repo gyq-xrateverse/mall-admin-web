@@ -218,14 +218,14 @@
       },
       handleImageFile(file) {
         const isValidFormat = ['image/jpeg', 'image/png', 'image/gif'].includes(file.type);
-        const isLt3M = file.size / 1024 / 1024 < 3;
+        const isLt20M = file.size / 1024 / 1024 < 20;
 
         if (!isValidFormat) {
           this.$message.error('图片格式只支持 JPG、PNG、GIF');
           return;
         }
-        if (!isLt3M) {
-          this.$message.error('图片大小不能超过 3MB');
+        if (!isLt20M) {
+          this.$message.error('图片大小不能超过 20MB');
           return;
         }
 
@@ -308,8 +308,23 @@
       },
       buildFileUrl(objectName) {
         // 根据实际配置构建文件访问URL
-        // 这里需要根据实际的文件服务配置来构建URL
-        return process.env.VUE_APP_FILE_BASE_URL + '/' + objectName;
+        if (!objectName) {
+          return '';
+        }
+
+        // 如果已经是完整URL，直接返回
+        if (objectName.startsWith('http://') || objectName.startsWith('https://')) {
+          return objectName;
+        }
+
+        // 使用环境变量构建URL
+        const baseUrl = process.env.VUE_APP_FILE_BASE_URL;
+        if (!baseUrl) {
+          console.warn('VUE_APP_FILE_BASE_URL 环境变量未配置，使用默认地址');
+          return 'http://localhost:9090/mall/' + objectName;
+        }
+
+        return baseUrl + '/' + objectName;
       },
       onSubmit(formName) {
         this.$refs[formName].validate((valid) => {
