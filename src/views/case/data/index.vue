@@ -74,28 +74,19 @@
         </el-table-column>
         <el-table-column label="案例标题" width="200" align="center">
           <template slot-scope="scope">
-            <el-link type="primary" @click="handleViewDetail(scope.row)">
+            <el-button type="text" @click="handleViewDetail(scope.row)" style="color: #409EFF;">
               {{scope.row.title}}
-            </el-link>
+            </el-button>
           </template>
         </el-table-column>
         <el-table-column label="预览" width="120" align="center">
           <template slot-scope="scope">
-            <div class="preview-container">
-              <el-image
-                v-if="scope.row.image"
-                style="width: 60px; height: 40px"
-                :src="buildFileUrl(scope.row.image)"
-                :preview-src-list="[buildFileUrl(scope.row.image)]"
-                fit="cover"
-                :lazy="true">
-                <div slot="error" class="image-slot">
-                  <i class="el-icon-picture-outline"></i>
-                </div>
-              </el-image>
-              <div v-if="scope.row.video" class="video-icon" @click="handlePlayVideo(scope.row)">
-                <i class="el-icon-video-play"></i>
-              </div>
+            <div class="image-preview-wrapper" v-if="scope.row.image" @mouseenter="showPreview($event, scope.row.image)" @mouseleave="hidePreview()">
+              <img
+                style="width: 60px; height: 40px; object-fit: cover"
+                :src="scope.row.image"
+                @error="handleImageError($event)"
+                :alt="scope.row.title" />
             </div>
           </template>
         </el-table-column>
@@ -134,8 +125,9 @@
         <el-table-column label="创建时间" width="160" align="center">
           <template slot-scope="scope">{{scope.row.createTime | formatDateTime}}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" align="center" fixed="right">
+        <el-table-column label="操作" width="240" align="center" fixed="right">
           <template slot-scope="scope">
+            <el-button size="mini" type="primary" @click="handleViewDetail(scope.row)">预览</el-button>
             <el-button size="mini" @click="handleUpdate(scope.$index, scope.row)">编辑</el-button>
             <el-button size="mini" type="danger" @click="handleDelete(scope.$index, scope.row)">删除</el-button>
           </template>
@@ -171,6 +163,11 @@
         :total="total">
       </el-pagination>
     </div>
+
+    <!-- 图片预览弹窗 -->
+    <div v-if="previewVisible" class="image-preview-popup" :style="previewStyle">
+      <img :src="previewImage" alt="预览图" />
+    </div>
   </div>
 </template>
 
@@ -188,6 +185,9 @@
         total: null,
         listLoading: true,
         categoryOptions: [],
+        previewVisible: false,
+        previewImage: '',
+        previewStyle: {},
         listQuery: {
           pageNum: 1,
           pageSize: 10,
@@ -218,29 +218,6 @@
         fetchAllList().then(response => {
           this.categoryOptions = response.data;
         });
-      },
-      buildFileUrl(objectName) {
-        if (!objectName) {
-          return '';
-        }
-
-        // 如果已经是完整URL，直接返回
-        if (objectName.startsWith('http://') || objectName.startsWith('https://')) {
-          return objectName;
-        }
-
-        // 使用环境变量构建URL
-        const baseUrl = process.env.VUE_APP_FILE_BASE_URL;
-        if (!baseUrl) {
-          console.warn('VUE_APP_FILE_BASE_URL 环境变量未配置，使用默认地址');
-          return 'http://localhost:9090/mall/' + objectName;
-        }
-
-        return baseUrl + '/' + objectName;
-      },
-      handlePlayVideo(row) {
-        // 跳转到详情页面播放视频
-        this.handleViewDetail(row);
       },
       handleResetSearch() {
         this.listQuery = {
@@ -405,6 +382,29 @@
             });
           });
         }
+      },
+      showPreview(event, imageUrl) {
+        const rect = event.target.getBoundingClientRect();
+        this.previewImage = imageUrl;
+        this.previewStyle = {
+          position: 'fixed',
+          top: Math.max(10, rect.top - 150) + 'px',
+          left: Math.min(window.innerWidth - 420, rect.right + 10) + 'px',
+          zIndex: 9999
+        };
+        this.previewVisible = true;
+      },
+      hidePreview() {
+        this.previewVisible = false;
+      },
+      handleImageError(event) {
+        // 图片加载失败时显示默认图标
+        event.target.style.display = 'none';
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'image-slot';
+        errorDiv.innerHTML = '<i class="el-icon-picture-outline"></i>';
+        errorDiv.style.cssText = 'width: 60px; height: 40px; display: flex; justify-content: center; align-items: center; background: #f5f7fa; color: #909399; font-size: 20px;';
+        event.target.parentNode.appendChild(errorDiv);
       }
     }
   }
@@ -415,31 +415,6 @@
     width: 203px;
   }
 
-  .preview-container {
-    position: relative;
-    display: inline-block;
-  }
-
-  .video-icon {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.6);
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: white;
-    font-size: 12px;
-  }
-
-  .video-icon:hover {
-    background: rgba(0, 0, 0, 0.8);
-  }
 
   .image-slot {
     display: flex;
@@ -451,4 +426,27 @@
     color: #909399;
     font-size: 20px;
   }
+
+  .image-preview-wrapper {
+    display: inline-block;
+    cursor: pointer;
+  }
+
+  .image-preview-popup {
+    background: white;
+    border: 2px solid #409EFF;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    padding: 8px;
+    width: 400px;
+    height: 300px;
+  }
+
+  .image-preview-popup img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
 </style>

@@ -18,8 +18,8 @@
           <div class="video-container">
             <video
               ref="videoPlayer"
-              :src="buildFileUrl(caseData.video)"
-              :poster="buildFileUrl(caseData.image)"
+              :src="caseData.video"
+              :poster="caseData.image"
               controls
               preload="metadata"
               width="100%"
@@ -40,15 +40,12 @@
 
         <div class="content-section" v-if="caseData.image">
           <h3>视频封面</h3>
-          <el-image
-            style="width: 300px; height: 200px"
-            :src="buildFileUrl(caseData.image)"
-            :preview-src-list="[buildFileUrl(caseData.image)]"
-            fit="cover">
-            <div slot="error" class="image-slot">
-              <i class="el-icon-picture-outline"></i>
-            </div>
-          </el-image>
+          <img
+            style="width: 300px; height: 200px; object-fit: cover; cursor: pointer"
+            :src="caseData.image"
+            @click="previewImage(caseData.image)"
+            @error="handleImageError($event)"
+            :alt="caseData.title" />
         </div>
         
         <div class="content-section">
@@ -85,14 +82,11 @@
               :key="item.id"
               class="related-case-item"
               @click="viewRelatedCase(item)">
-              <el-image
-                style="width: 120px; height: 80px"
-                :src="buildFileUrl(item.image)"
-                fit="cover">
-                <div slot="error" class="image-slot">
-                  <i class="el-icon-picture-outline"></i>
-                </div>
-              </el-image>
+              <img
+                style="width: 120px; height: 80px; object-fit: cover"
+                :src="item.image"
+                @error="handleImageError($event)"
+                :alt="item.title" />
               <div class="case-info">
                 <h4>{{item.title}}</h4>
                 <p class="case-meta">
@@ -167,25 +161,6 @@
         // fetchRelatedCases(this.caseData.categoryId, this.caseData.id)
         this.relatedCases = [];
       },
-      buildFileUrl(objectName) {
-        if (!objectName) {
-          return '';
-        }
-
-        // 如果已经是完整URL，直接返回
-        if (objectName.startsWith('http://') || objectName.startsWith('https://')) {
-          return objectName;
-        }
-
-        // 使用环境变量构建URL
-        const baseUrl = process.env.VUE_APP_FILE_BASE_URL;
-        if (!baseUrl) {
-          console.warn('VUE_APP_FILE_BASE_URL 环境变量未配置，使用默认地址');
-          return 'http://localhost:9090/mall/' + objectName;
-        }
-
-        return baseUrl + '/' + objectName;
-      },
       onVideoLoadStart() {
         this.videoLoading = true;
         this.videoError = false;
@@ -214,6 +189,24 @@
       },
       goBack() {
         this.$router.back();
+      },
+      previewImage(imageUrl) {
+        // 使用Element UI的Dialog实现图片预览
+        this.$alert(`<img src="${imageUrl}" style="max-width: 100%; max-height: 500px;"/>`, '图片预览', {
+          dangerouslyUseHTMLString: true,
+          showCancelButton: false,
+          showConfirmButton: false,
+          customClass: 'image-preview-dialog'
+        });
+      },
+      handleImageError(event) {
+        // 图片加载失败时显示默认图标
+        event.target.style.display = 'none';
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'image-slot';
+        errorDiv.innerHTML = '<i class="el-icon-picture-outline"></i>';
+        errorDiv.style.cssText = event.target.style.width + ' height: ' + event.target.style.height + '; display: flex; justify-content: center; align-items: center; background: #f5f7fa; color: #909399; font-size: 20px;';
+        event.target.parentNode.appendChild(errorDiv);
       }
     },
     beforeDestroy() {
