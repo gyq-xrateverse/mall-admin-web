@@ -1,8 +1,8 @@
-@import './variables.scss';
-@import './mixin.scss';
-@import './transition.scss';
-@import './element-ui.scss';
-@import './sidebar.scss';
+@use './variables';
+@use './mixin';
+@use './transition';
+@use './element-ui';
+@use './sidebar';
 
 body {
   -moz-osx-font-smoothing: grayscale;
