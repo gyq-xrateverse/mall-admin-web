@@ -307,24 +307,8 @@
         console.log('Video file removed');
       },
       buildFileUrl(objectName) {
-        // 根据实际配置构建文件访问URL
-        if (!objectName) {
-          return '';
-        }
-
-        // 如果已经是完整URL，直接返回
-        if (objectName.startsWith('http://') || objectName.startsWith('https://')) {
-          return objectName;
-        }
-
-        // 使用环境变量构建URL
-        const baseUrl = process.env.VUE_APP_FILE_BASE_URL;
-        if (!baseUrl) {
-          console.warn('VUE_APP_FILE_BASE_URL 环境变量未配置，使用默认地址');
-          return 'http://localhost:9090/mall/' + objectName;
-        }
-
-        return baseUrl + '/' + objectName;
+        // 后端返回的已经是完整URL，直接返回即可
+        return objectName || '';
       },
       onSubmit(formName) {
         this.$refs[formName].validate((valid) => {
