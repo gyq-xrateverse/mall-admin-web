@@ -1,0 +1,180 @@
+name: Build and Push Mall-Admin-Web Docker Image
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+      - dev
+    paths:
+      - '**'
+      - '.github/workflows/docker-build.yml'
+
+env:
+  ALIYUN_DOCKER_REGISTRY: crpi-4z4v1n5g8hbg9g3x.cn-hangzhou.personal.cr.aliyuncs.com
+  IMAGE_NAME: crpi-4z4v1n5g8hbg9g3x.cn-hangzhou.personal.cr.aliyuncs.com/beilv-agent/mall-admin-web
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 获取版本信息
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            echo "VERSION=$VERSION" >> $GITHUB_ENV
+            echo "IS_TAG=true" >> $GITHUB_ENV
+            echo "Version from tag: $VERSION"
+          else
+            COMMIT_SHA=$(git rev-parse --short HEAD)
+            VERSION="1.0-SNAPSHOT-${COMMIT_SHA}"
+            echo "VERSION=$VERSION" >> $GITHUB_ENV
+            echo "IS_TAG=false" >> $GITHUB_ENV
+            echo "Version from commit: $VERSION"
+          fi
+
+      - name: 设置 Node.js 环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16'
+          cache: 'npm'
+
+      - name: 清理磁盘空间
+        run: |
+          echo "=== 清理前磁盘空间 ==="
+          df -h
+          echo "=== 清理大型预装软件 ==="
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /opt/az
+          echo "=== 清理 Docker 缓存 ==="
+          docker system prune -af --volumes || true
+          echo "=== 清理后磁盘空间 ==="
+          df -h
+
+      - name: 设置Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:v0.12.5
+            network=host
+
+      - name: 检查必需的 Secrets
+        run: |
+          if [ -z "${{ secrets.ALIYUN_DOCKER_USER }}" ]; then
+            echo "❌ ALIYUN_DOCKER_USER secret 未配置"
+            exit 1
+          fi
+          if [ -z "${{ secrets.ALIYUN_DOCKER_TOKEN }}" ]; then
+            echo "❌ ALIYUN_DOCKER_TOKEN secret 未配置"
+            exit 1
+          fi
+          echo "✅ 所有必需的 Secrets 已配置"
+
+      - name: 登录阿里云容器镜像仓库
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ALIYUN_DOCKER_REGISTRY }}
+          username: ${{ secrets.ALIYUN_DOCKER_USER }}
+          password: ${{ secrets.ALIYUN_DOCKER_TOKEN }}
+
+      - name: 安装依赖
+        run: |
+          echo "安装 mall-admin-web 依赖..."
+          npm install
+
+      - name: 运行代码检查和测试
+        run: |
+          echo "运行代码检查..."
+          # npm run lint || echo "Lint 检查警告，继续构建"
+          echo "跳过测试，直接构建"
+
+      - name: 监控系统资源
+        run: |
+          echo "=== 构建前系统资源检查 ==="
+          echo "CPU信息:"
+          nproc
+          echo "内存信息:"
+          free -h
+          echo "磁盘空间:"
+          df -h
+
+      - name: 构建并推送 Mall-Admin-Web Docker 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
+          build-args: |
+            VERSION=${{ env.VERSION }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+        timeout-minutes: 120
+
+      - name: 构建后空间检查
+        if: always()
+        run: |
+          echo "=== 构建后磁盘空间 ==="
+          df -h
+          echo "=== Docker镜像大小 ==="
+          docker images | head -10
+
+      - name: 手动推送镜像
+        if: failure() && github.event_name != 'pull_request'
+        run: |
+          echo "构建失败，尝试手动推送..."
+
+          # 推送 mall-admin-web
+          if docker images | grep -q mall-admin-web; then
+            IMAGE_ID=$(docker images | grep mall-admin-web | head -n1 | awk '{print $3}')
+            echo "找到 mall-admin-web 镜像 ID: $IMAGE_ID"
+            docker tag $IMAGE_ID ${{ env.IMAGE_NAME }}:latest
+            docker tag $IMAGE_ID ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+            docker push ${{ env.IMAGE_NAME }}:latest || echo "推送 mall-admin-web latest 失败"
+            docker push ${{ env.IMAGE_NAME }}:${{ env.VERSION }} || echo "推送 mall-admin-web 版本标签失败"
+          fi
+
+      - name: 构建后清理
+        if: always()
+        run: |
+          echo "=== 构建后磁盘空间 ==="
+          df -h
+          echo "=== 清理构建缓存 ==="
+          docker system prune -af --volumes || true
+          echo "=== 最终磁盘空间 ==="
+          df -h
+
+      - name: 构建状态通知
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Mall-Admin-Web Docker 镜像构建成功!"
+            echo "版本: ${{ env.VERSION }}"
+            echo "构建平台: linux/amd64"
+            echo "镜像仓库: ${{ env.ALIYUN_DOCKER_REGISTRY }}"
+            echo "推送状态: ${{ github.event_name != 'pull_request' && '已推送' || '仅构建' }}"
+            echo "镜像地址: ${{ env.IMAGE_NAME }}:${{ env.VERSION }}"
+          else
+            echo "❌ Mall-Admin-Web Docker 镜像构建失败!"
+            echo "请检查上述诊断信息和构建日志"
+            exit 1
+          fi
